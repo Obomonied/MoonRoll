@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moon Faucet</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+body{font-family:sans-serif;background:#2d1b5e;color:#fff;text-align:center;padding:30px}
+button{background:#7c4dff;color:#fff;border:0;border-radius:12px;padding:14px 28px;font-size:18px}
+</style>
+</head>
+<body>
+<h2>🌙 Moon Faucet</h2>
+<p id="hello">Loading...</p>
+<button onclick="alert('Tasks coming soon!')">View Tasks</button>
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+const user = tg.initDataUnsafe.user;
+document.getElementById("hello").textContent =
+  user ? "Hello, " + user.first_name + "!" : "Open me from Telegram";
+</script>
+</body>
+</html>
