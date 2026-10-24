@@ -6,21 +6,92 @@
 <title>Moon Faucet</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-body{font-family:sans-serif;background:#2d1b5e;color:#fff;text-align:center;padding:30px}
-button{background:#7c4dff;color:#fff;border:0;border-radius:12px;padding:14px 28px;font-size:18px}
+body{font-family:sans-serif;background:#2d1b5e;color:#fff;margin:0;padding:16px}
+.card{background:#3d2a7a;border-radius:14px;padding:14px;margin-bottom:12px}
+.big{font-size:26px;font-weight:bold}
+.small{opacity:.8;font-size:13px}
+.task{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px}
+button{background:#7c4dff;color:#fff;border:0;border-radius:10px;padding:10px 16px;font-size:15px}
 </style>
 </head>
 <body>
 <h2>🌙 Moon Faucet</h2>
-<p id="hello">Loading...</p>
-<button onclick="alert('Tasks coming soon!')">View Tasks</button>
+<div class="card">
+  <div class="small">Earnings</div>
+  <div class="big" id="bal">...</div>
+  <div class="small" id="info"></div>
+</div>
+<div class="card">
+  <b>Tasks</b>
+  <div id="tasks">Loading...</div>
+</div>
 <script>
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
-const user = tg.initDataUnsafe.user;
-document.getElementById("hello").textContent =
-  user ? "Hello, " + user.first_name + "!" : "Open me from Telegram";
+const API = new URLSearchParams(location.search).get("api");
+
+function usd(x) { return "$" + (x / 1000000).toFixed(4); }
+
+async function call(path) {
+  const r = await fetch(API + path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ initData: tg.initData })
+  });
+  return r.json();
+}
+
+function openLink(url) {
+  if (url.indexOf("https://t.me/") === 0) tg.openTelegramLink(url);
+  else tg.openLink(url);
+}
+
+async function load() {
+  const bal = document.getElementById("bal");
+  const info = document.getElementById("info");
+  const box = document.getElementById("tasks");
+  if (!API) {
+    bal.textContent = "No server address";
+    box.textContent = "Open this app from the bot's menu button.";
+    return;
+  }
+  try {
+    const me = await call("/api/me");
+    if (me.error === "start_first") {
+      bal.textContent = "Welcome!";
+      box.textContent = "Open the bot chat and send /start first.";
+      return;
+    }
+    if (me.error) { bal.textContent = "Error"; box.textContent = me.error; return; }
+    bal.textContent = usd(me.balance);
+    info.textContent = "Withdrawable: " + usd(me.available) +
+      " | Ad balance: " + usd(me.ad_balance) +
+      " | Friends: " + me.referrals;
+    const t = await call("/api/tasks");
+    box.textContent = "";
+    if (!t.tasks || t.tasks.length === 0) {
+      box.textContent = "No tasks right now. Come back later!";
+      return;
+    }
+    t.tasks.forEach(function (task) {
+      const row = document.createElement("div");
+      row.className = "task";
+      const label = document.createElement("div");
+      label.textContent = task.title + " (" + usd(task.reward) + ")";
+      const btn = document.createElement("button");
+      btn.textContent = "Start";
+      btn.onclick = function () { openLink(task.link); };
+      row.appendChild(label);
+      row.appendChild(btn);
+      box.appendChild(row);
+    });
+  } catch (e) {
+    bal.textContent = "Can't reach the server";
+    box.textContent = "Is the bot running? Try again in a minute.";
+  }
+}
+load();
 </script>
 </body>
 </html>
