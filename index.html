@@ -10,8 +10,11 @@ body{font-family:sans-serif;background:#2d1b5e;color:#fff;margin:0;padding:16px}
 .card{background:#3d2a7a;border-radius:14px;padding:14px;margin-bottom:12px}
 .big{font-size:26px;font-weight:bold}
 .small{opacity:.8;font-size:13px}
-.task{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px}
+.task{margin-top:14px}
+.btns{display:flex;gap:8px;margin-top:6px}
 button{background:#7c4dff;color:#fff;border:0;border-radius:10px;padding:10px 16px;font-size:15px}
+button.check{background:#2e9e5b}
+#msg{margin-top:10px;font-size:14px;color:#ffd666}
 </style>
 </head>
 <body>
@@ -23,6 +26,7 @@ button{background:#7c4dff;color:#fff;border:0;border-radius:10px;padding:10px 16
 </div>
 <div class="card">
   <b>Tasks</b>
+  <div id="msg"></div>
   <div id="tasks">Loading...</div>
 </div>
 <script>
@@ -31,13 +35,23 @@ tg.ready();
 tg.expand();
 const API = new URLSearchParams(location.search).get("api");
 
+const MSG = {
+  not_joined: "We can't see you in the channel yet. Join it, then tap Check.",
+  already_done: "You already did this task.",
+  unavailable: "This task is no longer available.",
+  start_first: "Open the bot chat and send /start first.",
+  yt_soon: "YouTube checking is coming soon.",
+  bad_task: "Something went wrong.",
+  unauthorized: "Please close the app and open it again."
+};
+
 function usd(x) { return "$" + (x / 1000000).toFixed(4); }
 
-async function call(path) {
+async function call(path, extra) {
   const r = await fetch(API + path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ initData: tg.initData })
+    body: JSON.stringify(Object.assign({ initData: tg.initData }, extra || {}))
   });
   return r.json();
 }
@@ -79,11 +93,36 @@ async function load() {
       row.className = "task";
       const label = document.createElement("div");
       label.textContent = task.title + " (" + usd(task.reward) + ")";
-      const btn = document.createElement("button");
-      btn.textContent = "Start";
-      btn.onclick = function () { openLink(task.link); };
+      const btns = document.createElement("div");
+      btns.className = "btns";
+      const start = document.createElement("button");
+      start.textContent = "Start";
+      start.onclick = function () { openLink(task.link); };
+      const check = document.createElement("button");
+      check.textContent = "Check ✅";
+      check.className = "check";
+      check.onclick = async function () {
+        check.disabled = true;
+        const msg = document.getElementById("msg");
+        msg.textContent = "Checking...";
+        try {
+          const r = await call("/api/check", { task_id: task.id });
+          if (r.ok) {
+            msg.textContent = "Done! +" + usd(r.reward);
+            await load();
+          } else {
+            msg.textContent = MSG[r.error] || "Could not check. Try again.";
+            check.disabled = false;
+          }
+        } catch (e) {
+          msg.textContent = "Can't reach the server. Try again.";
+          check.disabled = false;
+        }
+      };
+      btns.appendChild(start);
+      btns.appendChild(check);
       row.appendChild(label);
-      row.appendChild(btn);
+      row.appendChild(btns);
       box.appendChild(row);
     });
   } catch (e) {
